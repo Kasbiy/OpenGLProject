@@ -1,4 +1,4 @@
 build
 obj/*.obj
 .vs
-*.vcxproj*
+*.vcxproj.*
