@@ -33,7 +33,7 @@ Camera::Camera(uint32_t windowWidth,
 	m_Direction.y = glm::sin(m_VerticalAngle);
 	m_Direction.z = glm::cos(m_VerticalAngle) * glm::cos(m_HorizontalAngle);
 	
-	m_Up = glm::cross(m_Right, m_Direction);
+	m_Up = -glm::cross(m_Right, m_Direction);
 
     m_ViewMatrix = glm::lookAt(m_Position, m_Position + m_Direction, m_Up);
 
@@ -42,13 +42,13 @@ Camera::Camera(uint32_t windowWidth,
 
 void Camera::VerticalMovement(int movement)
 {
-	m_VerticalAngle += m_MouseMovementSpeed*movement;
+	m_VerticalAngle -= m_MouseMovementSpeed*movement;
 
     m_Direction.x = glm::cos(m_VerticalAngle) * glm::sin(m_HorizontalAngle);
     m_Direction.y = glm::sin(m_VerticalAngle);
     m_Direction.z = glm::cos(m_VerticalAngle) * glm::cos(m_HorizontalAngle);
 
-	m_Up = glm::cross(m_Right, m_Direction);
+	m_Up = -glm::cross(m_Right, m_Direction);
 
 	m_ViewMatrix = glm::lookAt(m_Position, m_Position+m_Direction, m_Up);
 
@@ -57,7 +57,7 @@ void Camera::VerticalMovement(int movement)
 
 void Camera::HorizontalMovement(int movement)
 {
-	m_HorizontalAngle += m_MouseMovementSpeed * movement;
+	m_HorizontalAngle -= m_MouseMovementSpeed * movement;
 
 	m_Direction.x = glm::cos(m_VerticalAngle) * glm::sin(m_HorizontalAngle);
 	m_Direction.z = glm::cos(m_VerticalAngle) * glm::cos(m_HorizontalAngle);
@@ -65,7 +65,7 @@ void Camera::HorizontalMovement(int movement)
 	m_Right.x = glm::sin(m_HorizontalAngle - glm::half_pi<float>());
 	m_Right.z = glm::cos(m_HorizontalAngle - glm::half_pi<float>());
 
-	m_Up = glm::cross(m_Right, m_Direction);
+	m_Up = -glm::cross(m_Right, m_Direction);
 
 	m_ViewMatrix = glm::lookAt(m_Position, m_Position+m_Direction, m_Up);
 
@@ -92,7 +92,7 @@ void Camera::MoveBackward(float dt)
 
 void Camera::MoveLeft(float dt)
 {
-	m_Position -= m_Right * m_MovementSpeed * dt;
+	m_Position += m_Right * m_MovementSpeed * dt;
 
 	m_ViewMatrix = glm::lookAt(m_Position, m_Position + m_Direction, m_Up);
 
@@ -101,7 +101,7 @@ void Camera::MoveLeft(float dt)
 
 void Camera::MoveRight(float dt)
 {
-	m_Position += m_Right * m_MovementSpeed * dt;
+	m_Position -= m_Right * m_MovementSpeed * dt;
 
 	m_ViewMatrix = glm::lookAt(m_Position, m_Position + m_Direction, m_Up);
 

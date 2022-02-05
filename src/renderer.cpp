@@ -1,5 +1,7 @@
 #include <GL/glew.h>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+
 #pragma warning(push, 0)
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -10,6 +12,7 @@
 #include <string>
 #include <iostream>
 
+#include "tinyobjloader/tiny_obj_loader.h"
 #include "camera.hpp"
 #include "renderer.hpp"
 
@@ -130,22 +133,70 @@ void GenerateSphereMesh(std::vector<VertexDataPosition3fColor3f>& vertices, std:
     }
 }
 
+void LoadSceneMesh(std::vector<VertexDataPosition3fColor3f> &vertices, std::vector<uint32_t> &indices)
+{
+    tinyobj::ObjReader reader;
+    std::string inputfile = "C:/Users/Charles Polart/Documents/EpitechOpenGL/OpenGLProject/obj/dragon.obj";
+    tinyobj::ObjReaderConfig reader_config;
+
+    reader_config.mtl_search_path = "C:/Users/Charles Polart/Documents/EpitechOpenGL/OpenGLProject/obj/";
+
+    if (!reader.ParseFromFile(inputfile, reader_config))
+    {
+        if (!reader.Error().empty())
+        {
+            std::cerr << "TinyObjReader: " << reader.Error();
+        }
+        exit(1);
+    }
+
+    if (!reader.Warning().empty())
+    {
+        std::cout << "TinyObjReader: " << reader.Warning();
+    }
+
+    const std::vector<tinyobj::shape_t> &shapes = reader.GetShapes();
+    const tinyobj::attrib_t &attrib = reader.GetAttrib();
+    size_t indices_size = 0;
+
+    for (size_t s = 0; s < shapes.size(); ++s)
+    {
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); ++f)
+        {
+            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+            for (size_t v = 0; v < fv; ++v)
+            {
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+                tinyobj::real_t vx = attrib.vertices[fv * size_t(idx.vertex_index) + 0];
+                tinyobj::real_t vy = attrib.vertices[fv * size_t(idx.vertex_index) + 1];
+                tinyobj::real_t vz = attrib.vertices[fv * size_t(idx.vertex_index) + 2];
+                glm::vec3 position(vx, vy, vz);
+                glm::vec3 color(0.8, 0.8, 0.8);
+                vertices.push_back(visualizer::VertexDataPosition3fColor3f{position, color});
+            }
+            index_offset += fv;
+            indices_size += fv;
+        }
+    }
+    for (size_t i = 0; i < indices_size; ++i)
+    {
+        indices.push_back((uint32_t)i);
+    }
+}
+
 void Renderer::Initialize()
 {
-    // Initialize your buffers etc. here
+    std::vector<VertexDataPosition3fColor3f> vertices;
+    std::vector<uint32_t> indices;
 
-    const uint16_t sphereStackCount = 63;
-    const uint16_t sphereSectorCount = 63;
+    LoadSceneMesh(vertices, indices);
 
-    const uint16_t vertexCount = (sphereStackCount + 1) * (sphereSectorCount + 1);
-    const uint16_t indexCount = (sphereStackCount - 1) * sphereSectorCount * 6;
+    const uint32_t vertexCount = vertices.size();
+    const uint32_t indexCount = indices.size();
 
     m_IndexCount = indexCount;
-
-    std::vector<VertexDataPosition3fColor3f> vertices(vertexCount);
-    std::vector<uint16_t> indices(indexCount);
-
-    GenerateSphereMesh(vertices, indices, sphereStackCount, sphereSectorCount, glm::vec3(0.0f, 0.0f, 0.0f), 1.0f);
 
     glCreateBuffers(1, &m_UBO);
     glNamedBufferStorage(m_UBO, sizeof(glm::mat4), glm::value_ptr(m_Camera->GetViewProjectionMatrix()), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT);
@@ -155,7 +206,7 @@ void Renderer::Initialize()
     glNamedBufferStorage(m_VBO, sizeof(VertexDataPosition3fColor3f) * vertexCount, vertices.data(), 0);
 
     glCreateBuffers(1, &m_IBO);
-    glNamedBufferStorage(m_IBO, sizeof(uint16_t) * indexCount, indices.data(), 0);
+    glNamedBufferStorage(m_IBO, sizeof(uint32_t) * indexCount, indices.data(), 0);
 
     glCreateVertexArrays(1, &m_VAO);
     glBindVertexArray(m_VAO);
@@ -288,7 +339,7 @@ void Renderer::Render()
     glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_UBO, 0, sizeof(glm::mat4));
     glUseProgram(m_ShaderProgram);
     glBindVertexArray(m_VAO);
-    glDrawElements(GL_TRIANGLES, m_IndexCount, GL_UNSIGNED_SHORT, nullptr);
+    glDrawElements(GL_TRIANGLES, m_IndexCount, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
     glUseProgram(0);
     glBindBufferRange(GL_UNIFORM_BUFFER, 0, 0, 0, 0);
