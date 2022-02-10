@@ -125,9 +125,8 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NOMINMAX;WIN32_MEAN_AND_LEAN;VC_EXTRALEAN;_CRT_SECURE_NO_WARNINGS;GLEW_NO_GLU;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
-      <ConformanceMode>Default</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\Charles Polart\Documents\EpitechOpenGL\OpenGLProject\include;C:\Users\Charles Polart\Documents\EpitechOpenGL\OpenGLProject\lib\glm\include;C:\Users\Charles Polart\Documents\EpitechOpenGL\OpenGLProject\lib\glew\include;C:\Users\Charles Polart\Documents\EpitechOpenGL\OpenGLProject\lib\tinyobjloader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)lib\glm\include;$(SolutionDir)lib\glew\include;$(SolutionDir)lib\tinyobjloader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWarningAsError>false</TreatWarningAsError>
       <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
     </ClCompile>
@@ -151,9 +150,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\Charles Polart\Documents\EpitechOpenGL\OpenGLProject\include;C:\Users\Charles Polart\Documents\EpitechOpenGL\OpenGLProject\lib\glm\include;C:\Users\Charles Polart\Documents\EpitechOpenGL\OpenGLProject\lib\glew\include;C:\Users\Charles Polart\Documents\EpitechOpenGL\OpenGLProject\lib\tinyobjloader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)include;$(SolutionDir)lib\glm\include;$(SolutionDir)lib\glew\include;$(SolutionDir)lib\tinyobjloader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWarningAsError>false</TreatWarningAsError>
     </ClCompile>
     <Link>
