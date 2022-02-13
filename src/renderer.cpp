@@ -34,7 +34,7 @@ glm::vec3 computeNormal(const glm::vec3 &A, const glm::vec3 &B, const glm::vec3 
 {
     glm::vec3 N = glm::cross(A - B, B - C);
 
-    if (computeMagnitude(N) > 0)
+    //if (computeMagnitude(N) > 0)
     {
         return (glm::normalize(N));
     }
@@ -44,7 +44,7 @@ glm::vec3 computeNormal(const glm::vec3 &A, const glm::vec3 &B, const glm::vec3 
 void LoadSceneMesh(std::vector<VertexDataPosition3fColor3f> &vertices, std::vector<uint32_t> &indices)
 {
     tinyobj::ObjReader reader;
-    std::string inputfile = "path_to_obj";
+    std::string inputfile = "dragon.obj";
     tinyobj::ObjReaderConfig reader_config;
 
     if (!reader.ParseFromFile(inputfile, reader_config))
@@ -83,17 +83,24 @@ void LoadSceneMesh(std::vector<VertexDataPosition3fColor3f> &vertices, std::vect
                 tinyobj::real_t vx = attrib.vertices[fv * size_t(idx.vertex_index) + 0];
                 tinyobj::real_t vy = attrib.vertices[fv * size_t(idx.vertex_index) + 1];
                 tinyobj::real_t vz = attrib.vertices[fv * size_t(idx.vertex_index) + 2];
+                tinyobj::real_t vnx = attrib.normals.empty() ? 0.0 : attrib.normals[fv * size_t(idx.normal_index) + 0];
+                tinyobj::real_t vny = attrib.normals.empty() ? 0.0 : attrib.normals[fv * size_t(idx.normal_index) + 1];
+                tinyobj::real_t vnz = attrib.normals.empty() ? 0.0 : attrib.normals[fv * size_t(idx.normal_index) + 2];
                 glm::vec3 position(vx, vy, vz);
+                glm::vec3 normal(vnx, vny, vnz);
                 glm::vec3 color(0.8, 0.8, 0.8);
-                vertices.push_back(visualizer::VertexDataPosition3fColor3f{position, color});
+                vertices.push_back(visualizer::VertexDataPosition3fColor3f{position, normal, color});
             }
-            visualizer::VertexDataPosition3fColor3f &A = vertices[vertices.size() - 3];
-            visualizer::VertexDataPosition3fColor3f &B = vertices[vertices.size() - 2];
-            visualizer::VertexDataPosition3fColor3f &C = vertices[vertices.size() - 1];
-            glm::vec3 normal = computeNormal(A.position, B.position, C.position);
-            A.normal = normal;
-            B.normal = normal;
-            C.normal = normal;
+            if (attrib.normals.empty())
+            {
+                visualizer::VertexDataPosition3fColor3f& A = vertices[vertices.size() - 3];
+                visualizer::VertexDataPosition3fColor3f& B = vertices[vertices.size() - 2];
+                visualizer::VertexDataPosition3fColor3f& C = vertices[vertices.size() - 1];
+                glm::vec3 normal = computeNormal(A.position, B.position, C.position);
+                A.normal = normal;
+                B.normal = normal;
+                C.normal = normal;
+            }
             index_offset += fv;
             indices_size += fv;
         }
@@ -118,7 +125,7 @@ void Renderer::Initialize()
 
     glCreateBuffers(1, &m_UBO);
     glNamedBufferStorage(m_UBO, sizeof(glm::mat4), glm::value_ptr(m_Camera->GetViewProjectionMatrix()), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT);
-    m_UBOData = reinterpret_cast<glm::mat4 *>(glMapNamedBufferRange(m_UBO, 0, sizeof(glm::mat4), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_FLUSH_EXPLICIT_BIT));
+    m_UBOData = reinterpret_cast<glm::mat4*>(glMapNamedBufferRange(m_UBO, 0, sizeof(glm::mat4), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_FLUSH_EXPLICIT_BIT));
 
     glCreateBuffers(1, &m_VBO);
     glNamedBufferStorage(m_VBO, sizeof(VertexDataPosition3fColor3f) * vertexCount, vertices.data(), 0);
@@ -135,9 +142,9 @@ void Renderer::Initialize()
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexDataPosition3fColor3f), nullptr);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexDataPosition3fColor3f), reinterpret_cast<GLvoid *>(sizeof(glm::vec3)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexDataPosition3fColor3f), reinterpret_cast<GLvoid*>(sizeof(glm::vec3)));
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(VertexDataPosition3fColor3f), reinterpret_cast<GLvoid *>(sizeof(glm::vec3)));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(VertexDataPosition3fColor3f), reinterpret_cast<GLvoid*>(sizeof(glm::vec3) * 2));
 
     glBindVertexArray(0);
 
@@ -157,13 +164,16 @@ void Renderer::Initialize()
     glAttachShader(m_ShaderProgram, fShader);
 
     {
-        char const *const vertexShader =
+        char const* const vertexShader =
             R"(#version 450 core
 
 layout(location = 0) in vec3 inWorldPos;
-layout(location = 1) in vec3 inColor;
+layout(location = 1) in vec3 inNormal;
+layout(location = 2) in vec3 inColor;
 
-layout(location = 0) smooth out vec3 color;
+layout(location = 0) out vec3 FragPos;
+layout(location = 1) out vec3 normal;
+layout(location = 2) out vec3 color;
 
 layout(std140, binding = 0) uniform Matrix
 {
@@ -173,6 +183,8 @@ layout(std140, binding = 0) uniform Matrix
 void main()
 {
     color = inColor;
+    normal = inNormal;
+    FragPos = vec3(modelViewProjection * vec4(inWorldPos, 1.0));
     gl_Position = modelViewProjection*vec4(inWorldPos, 1.);
 }
 )";
@@ -192,22 +204,36 @@ void main()
 
                 glGetShaderInfoLog(vShader, length, nullptr, log.data());
 
-                std::cerr << "Vertex shader log:\n"
-                          << log << '\n';
+                std::cerr << "Vertex shader log:\n" << log << '\n';
             }
         }
 
-        char const *const fragmentShader =
+        char const* const fragmentShader =
             R"(#version 450 core
 
 layout(location = 0) out vec4 outColor;
 
-layout(location = 0) smooth in vec3 color;
+layout(location = 0) in vec3 FragPos;
+layout(location = 1) in vec3 normal;
+layout(location = 2) in vec3 color;
+
+vec3 normalize(vec3 vec)
+{
+    double norm = sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+
+    return (vec3(norm == 0.0 ? vec : vec / norm));
+}
 
 void main()
 {
-    outColor = vec4(color, 1.0);
-}
+    vec3 lightPos = vec3(0.0, 100.0, 0.0);
+    vec3 lightColor = vec3(1.0);
+    vec3 lightDir = normalize(lightPos - FragPos);
+    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 ambient = color * 0.1;
+    vec3 diffuse = diff * lightColor;
+    vec3 result = (ambient + diffuse) * color;
+    outColor = vec4(result, 1.0);}
 )";
 
         glShaderSource(fShader, 1, &fragmentShader, nullptr);
@@ -225,8 +251,7 @@ void main()
 
                 glGetShaderInfoLog(fShader, length, nullptr, log.data());
 
-                std::cerr << "Vertex shader log:\n"
-                          << log << '\n';
+                std::cerr << "Vertex shader log:\n" << log << '\n';
             }
         }
     }
@@ -244,8 +269,7 @@ void main()
 
             glGetProgramInfoLog(m_ShaderProgram, length, nullptr, log.data());
 
-            std::cerr << "Shader program log:\n"
-                      << log << '\n';
+            std::cerr << "Shader program log:\n" << log << '\n';
         }
     }
 
