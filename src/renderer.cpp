@@ -41,13 +41,12 @@ glm::vec3 computeNormal(const glm::vec3 &A, const glm::vec3 &B, const glm::vec3 
     return (glm::vec3());
 }
 
-void LoadSceneMesh(std::vector<VertexDataPosition3fColor3f> &vertices, std::vector<uint32_t> &indices)
+void LoadMesh(std::vector<VertexDataPosition3fColor3f> &vertices, std::vector<uint32_t> &indices, const std::string &path)
 {
     tinyobj::ObjReader reader;
-    std::string inputfile = "dragon.obj";
     tinyobj::ObjReaderConfig reader_config;
 
-    if (!reader.ParseFromFile(inputfile, reader_config))
+    if (!reader.ParseFromFile(path, reader_config))
     {
         if (!reader.Error().empty())
         {
@@ -111,33 +110,34 @@ void LoadSceneMesh(std::vector<VertexDataPosition3fColor3f> &vertices, std::vect
     }
 }
 
-void Renderer::Initialize()
+Object Renderer::InitObj(std::vector<VertexDataPosition3fColor3f> vertices, const std::vector<uint32_t> &indices, const glm::vec3 &translate)
 {
-    std::vector<VertexDataPosition3fColor3f> vertices;
-    std::vector<uint32_t> indices;
-
-    LoadSceneMesh(vertices, indices);
-
+    Object obj;
+    if (translate != glm::vec3(0))
+    {
+        for (size_t i = 0; i < vertices.size(); ++i)
+        {
+            vertices[i].position.x += translate.x;
+            vertices[i].position.y += translate.y;
+            vertices[i].position.z += translate.z;
+        }
+    }
     const uint32_t vertexCount = vertices.size();
     const uint32_t indexCount = indices.size();
 
-    m_IndexCount = indexCount;
+    obj.m_IndexCount = indexCount;
 
-    glCreateBuffers(1, &m_UBO);
-    glNamedBufferStorage(m_UBO, sizeof(glm::mat4), glm::value_ptr(m_Camera->GetViewProjectionMatrix()), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT);
-    m_UBOData = reinterpret_cast<glm::mat4*>(glMapNamedBufferRange(m_UBO, 0, sizeof(glm::mat4), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_FLUSH_EXPLICIT_BIT));
+    glCreateBuffers(1, &obj.m_VBO);
+    glNamedBufferStorage(obj.m_VBO, sizeof(VertexDataPosition3fColor3f) * vertexCount, vertices.data(), 0);
 
-    glCreateBuffers(1, &m_VBO);
-    glNamedBufferStorage(m_VBO, sizeof(VertexDataPosition3fColor3f) * vertexCount, vertices.data(), 0);
+    glCreateBuffers(1, &obj.m_IBO);
+    glNamedBufferStorage(obj.m_IBO, sizeof(uint32_t) * indexCount, indices.data(), 0);
 
-    glCreateBuffers(1, &m_IBO);
-    glNamedBufferStorage(m_IBO, sizeof(uint32_t) * indexCount, indices.data(), 0);
+    glCreateVertexArrays(1, &obj.m_VAO);
+    glBindVertexArray(obj.m_VAO);
 
-    glCreateVertexArrays(1, &m_VAO);
-    glBindVertexArray(m_VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_IBO);
+    glBindBuffer(GL_ARRAY_BUFFER, obj.m_VBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj.m_IBO);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexDataPosition3fColor3f), nullptr);
@@ -154,6 +154,37 @@ void Renderer::Initialize()
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
     glDisableVertexAttribArray(2);
+
+    return (obj);
+}
+
+void Renderer::Initialize()
+{
+    //Object desert;
+
+    std::vector<VertexDataPosition3fColor3f> vertices;
+    std::vector<uint32_t> indices;
+
+    LoadMesh(vertices, indices, "desert.obj");
+    {
+        Object desert = InitObj(vertices, indices);
+        m_objects.push_back(desert);
+    }
+
+    vertices.clear();
+    indices.clear();
+    LoadMesh(vertices, indices, "palm.obj");
+
+    Object palm = InitObj(vertices, indices, glm::vec3(-4.0, 0.0, 0.0));
+    Object palm2 = InitObj(vertices, indices, glm::vec3(0.0, 0.0, 0.0));
+    Object palm3 = InitObj(vertices, indices, glm::vec3(4.0, 0.0, 0.0));
+    m_objects.push_back(palm);
+    m_objects.push_back(palm2);
+    m_objects.push_back(palm3);
+
+    glCreateBuffers(1, &m_UBO);
+    glNamedBufferStorage(m_UBO, sizeof(glm::mat4), glm::value_ptr(m_Camera->GetViewProjectionMatrix()), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT);
+    m_UBOData = reinterpret_cast<glm::mat4*>(glMapNamedBufferRange(m_UBO, 0, sizeof(glm::mat4), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_FLUSH_EXPLICIT_BIT));
 
     GLuint vShader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -226,7 +257,7 @@ vec3 normalize(vec3 vec)
 
 void main()
 {
-    vec3 lightPos = vec3(0.0, 100.0, 0.0);
+    vec3 lightPos = vec3(0.0, 300.0, 0.0);
     vec3 lightColor = vec3(1.0);
     vec3 lightDir = normalize(lightPos - FragPos);
     float diff = max(dot(normal, lightDir), 0.0);
@@ -285,11 +316,14 @@ void Renderer::Render()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glBindBufferRange(GL_UNIFORM_BUFFER, 0, m_UBO, 0, sizeof(glm::mat4));
-    glUseProgram(m_ShaderProgram);
-    glBindVertexArray(m_VAO);
-    glDrawElements(GL_TRIANGLES, m_IndexCount, GL_UNSIGNED_INT, nullptr);
-    glBindVertexArray(0);
-    glUseProgram(0);
+    for (size_t i = 0; i < m_objects.size(); ++i)
+    {
+        glUseProgram(m_ShaderProgram);
+        glBindVertexArray(m_objects[i].m_VAO);
+        glDrawElements(GL_TRIANGLES, m_objects[i].m_IndexCount, GL_UNSIGNED_INT, nullptr);
+        glBindVertexArray(0);
+        glUseProgram(0);
+    }
     glBindBufferRange(GL_UNIFORM_BUFFER, 0, 0, 0, 0);
 }
 
@@ -298,10 +332,13 @@ void Renderer::Cleanup()
     glUnmapNamedBuffer(m_UBO);
 
     glDeleteBuffers(1, &m_UBO);
-    glDeleteBuffers(1, &m_VBO);
-    glDeleteBuffers(1, &m_IBO);
-    glDeleteVertexArrays(1, &m_VAO);
-    glDeleteProgram(m_ShaderProgram);
+    for (size_t i = 0; i < m_objects.size(); ++i)
+    {
+        glDeleteBuffers(1, &m_objects[i].m_VBO);
+        glDeleteBuffers(1, &m_objects[i].m_IBO);
+        glDeleteVertexArrays(1, &m_objects[i].m_VAO);
+        glDeleteProgram(m_ShaderProgram);
+    }
 }
 
 void Renderer::UpdateViewport(uint32_t width, uint32_t height)
@@ -316,7 +353,7 @@ void Renderer::UpdateViewport(uint32_t width, uint32_t height)
 void Renderer::UpdateCamera()
 {
     std::memcpy(m_UBOData, glm::value_ptr(m_Camera->GetViewProjectionMatrix()), sizeof(glm::mat4));
-    glFlushMappedNamedBufferRange(m_UBO, 0, sizeof(glm::mat4));
+    //glFlushMappedNamedBufferRange(m_UBO, 0, sizeof(glm::mat4));
 }
 
 END_VISUALIZER_NAMESPACE

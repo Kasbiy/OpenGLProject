@@ -8,6 +8,13 @@
 BEGIN_VISUALIZER_NAMESPACE
 
 class Camera;
+struct VertexDataPosition3fColor3f;
+
+struct Object
+{
+    uint32_t m_IndexCount;
+    GLuint m_VAO, m_VBO, m_IBO;
+};
 
 class Renderer
 {
@@ -24,6 +31,7 @@ public:
     Renderer& operator=(const Renderer&) = delete;
     Renderer& operator=(Renderer&&) = delete;
 
+    Object InitObj(std::vector<VertexDataPosition3fColor3f> vertices, const std::vector<uint32_t>& indices, const glm::vec3& translate = glm::vec3(0.0));
     void Initialize();
     void Render();
     void Cleanup();
@@ -32,11 +40,12 @@ public:
     void UpdateCamera();
 
 private:
-    uint32_t m_IndexCount;
-    GLuint m_VAO, m_VBO, m_IBO, m_UBO, m_ShaderProgram;
+    std::vector<Object> m_objects;
 
+    GLuint m_UBO;
     glm::mat4* m_UBOData = nullptr;
 
+    GLuint m_ShaderProgram;
     std::shared_ptr<Camera> m_Camera;
 };
 

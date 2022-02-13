@@ -25,7 +25,7 @@ public:
 		   float mouseSpeed = 0.005f,
 		   float FOV = 70.0f,
 		   float near = 0.01f,
-		   float far = 100.f);
+		   float far = 300.f);
 
 	void VerticalMovement(int);
 	void HorizontalMovement(int);
