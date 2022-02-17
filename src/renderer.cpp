@@ -11,6 +11,7 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <sstream>
 
 #include "tinyobjloader/tiny_obj_loader.h"
 #include "camera.hpp"
@@ -175,12 +176,24 @@ void Renderer::Initialize()
     indices.clear();
     LoadMesh(vertices, indices, "palm.obj");
 
-    Object palm = InitObj(vertices, indices, glm::vec3(-4.0, 0.0, 0.0));
-    Object palm2 = InitObj(vertices, indices, glm::vec3(0.0, 0.0, 0.0));
-    Object palm3 = InitObj(vertices, indices, glm::vec3(4.0, 0.0, 0.0));
-    m_objects.push_back(palm);
-    m_objects.push_back(palm2);
-    m_objects.push_back(palm3);
+    std::string line;
+    std::ifstream stream;
+    std::stringstream ss;
+    float x, y, z, a;
+    int i = 0;
+    stream.open("palmTransfo.txt");
+    std::getline(stream, line);
+    Object palm0[1541];
+    while (std::getline(stream, line))
+    {
+        ss << line;
+        ss >> x >> y >> z >> a;
+        palm0[i] = InitObj(vertices, indices, glm::vec3(x, y, z));
+        m_objects.push_back(palm0[i]);
+        i++;
+    }
+    
+    stream.close();
 
     glCreateBuffers(1, &m_UBO);
     glNamedBufferStorage(m_UBO, sizeof(glm::mat4), glm::value_ptr(m_Camera->GetViewProjectionMatrix()), GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT);
